@@ -3,9 +3,8 @@ import time
 import threading
 import random
 import hashlib
-from typing_extensions import TypeVarTuple
 
-from p2pnetwork.nodeconnection import NodeConnection
+from .nodeconnection import NodeConnection
 
 """
 Author: Maurice Snoeren <macsnoeren(at)gmail.com>
@@ -21,8 +20,8 @@ class Node(threading.Thread):
     """Implements a node that is able to connect to other nodes and is able to accept connections from other nodes.
     After instantiation, the node creates a TCP/IP server with the given port.
 
-    Create instance of a Node. If you want to implement the Node functionality with a callback, you should 
-    provide a callback method. It is preferred to implement a new node by extending this Node class. 
+    Create instance of a Node. If you want to implement the Node functionality with a callback, you should
+    provide a callback method. It is preferred to implement a new node by extending this Node class.
       host: The host name or ip address that is used to bind the TCP/IP server to.
       port: The port number that is used to bind the TCP/IP server to.
       callback: (optional) The callback that is invokes when events happen inside the network
@@ -33,15 +32,14 @@ class Node(threading.Thread):
                  data: The data that is send by the connected node."""
 
     def __init__(self, host, port, id=None, callback=None, max_connections=0):
-        """Create instance of a Node. If you want to implement the Node functionality with a callback, you should 
-           provide a callback method. It is preferred to implement a new node by extending this Node class. 
+        """Create instance of a Node. If you want to implement the Node functionality with a callback, you should
+           provide a callback method. It is preferred to implement a new node by extending this Node class.
             host: The host name or ip address that is used to bind the TCP/IP server to.
             port: The port number that is used to bind the TCP/IP server to.
             id: (optional) This id will be associated with the node. When not given a unique ID will be created.
             callback: (optional) The callback that is invokes when events happen inside the network.
             max_connections: (optional) limiting the maximum nodes that are able to connect to this node."""
         super(Node, self).__init__()
-
         # When this flag is set, the node will stop and close
         self.terminate_flag = threading.Event()
 
@@ -76,7 +74,7 @@ class Node(threading.Thread):
         self.message_count_send = 0
         self.message_count_recv = 0
         self.message_count_rerr = 0
-        
+
         # Connection limit of inbound nodes (nodes that connect to us)
         self.max_connections = max_connections
 
@@ -99,7 +97,7 @@ class Node(threading.Thread):
         t = self.host + str(self.port) + str(random.randint(1, 99999999))
         id.update(t.encode('ascii'))
         return id.hexdigest()
-        
+
 
     def init_server(self):
         """Initialization of the TCP/IP server to receive connections. It binds to the given host and port."""
@@ -142,12 +140,11 @@ class Node(threading.Thread):
             self.debug_print("Node send_to_node: Could not send the data, node is not found!")
 
     def connect_with_node(self, host, port, reconnect=False):
-        """ Make a connection with another node that is running on host with port. When the connection is made, 
+        """ Make a connection with another node that is running on host with port. When the connection is made,
             an event is triggered outbound_node_connected. When the connection is made with the node, it exchanges
             the id's of the node. First we send our id and then we receive the id of the node we are connected to.
             When the connection is made the method outbound_node_connected is invoked. If reconnect is True, the
-            node will try to reconnect to the code whenever the node connection was closed. The method returns
-            True when the node is connected with the specific host."""
+            node will try to reconnect to the code whenever the node connection was closed."""
 
         if host == self.host and port == self.port:
             print("connect_with_node: Cannot connect with yourself!!")
@@ -169,13 +166,10 @@ class Node(threading.Thread):
             connected_node_id = sock.recv(4096).decode('utf-8') # When a node is connected, it sends it id!
 
             # Fix bug: Cannot connect with nodes that are already connected with us!
-            #          Send message and close the socket.
-            for node in self.nodes_inbound:
-                if node.host == host and node.id == connected_node_id:
-                    print("connect_with_node: This node (" + node.id + ") is already connected with us.")
-                    sock.send("CLOSING: Already having a connection together".encode('utf-8'))
-                    sock.close()
-                    return True
+            # for node in self.nodes_inbound:
+            #     if node.host == host and node.id == connected_node_id:
+            #         print("connect_with_node: This node (" + node.id + ") is already connected with us.")
+            #         return True
 
             thread_client = self.create_new_connection(sock, connected_node_id, host, port)
             thread_client.start()
@@ -190,15 +184,12 @@ class Node(threading.Thread):
                     "host": host, "port": port, "tries": 0
                 })
 
-            return True
-
         except Exception as e:
             self.debug_print("TcpServer.connect_with_node: Could not connect with node. (" + str(e) + ")")
-            return False
 
     def disconnect_with_node(self, node):
         """Disconnect the TCP/IP connection with the specified node. It stops the node and joins the thread.
-           The node will be deleted from the nodes_outbound list. Before closing, the method 
+           The node will be deleted from the nodes_outbound list. Before closing, the method
            node_disconnect_with_outbound_node is invoked."""
         if node in self.nodes_outbound:
             self.node_disconnect_with_outbound_node(node)
@@ -253,9 +244,9 @@ class Node(threading.Thread):
                 connection, client_address = self.sock.accept()
 
                 self.debug_print("Total inbound connections:" + str(len(self.nodes_inbound)))
-                # When the maximum connections is reached, it disconnects the connection 
+                # When the maximum connections is reached, it disconnects the connection
                 if self.max_connections == 0 or len(self.nodes_inbound) < self.max_connections:
-                    
+
                     # Basic information exchange (not secure) of the id's of the nodes!
                     connected_node_id = connection.recv(4096).decode('utf-8') # When a node is connected, it sends it id!
                     connection.send(self.id.encode('utf-8')) # Send my id to the connected node!
@@ -269,7 +260,7 @@ class Node(threading.Thread):
                 else:
                     self.debug_print("New connection is closed. You have reached the maximum connection limit!")
                     connection.close()
-            
+
             except socket.timeout:
                 self.debug_print('Node: Connection timeout!')
 
@@ -295,7 +286,7 @@ class Node(threading.Thread):
         for t in self.nodes_outbound:
             t.join()
 
-        self.sock.settimeout(None)   
+        self.sock.settimeout(None)
         self.sock.close()
         print("Node stopped")
 
